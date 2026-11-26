@@ -48,3 +48,5 @@ python E-Stim-Player.py
 * **Playback & Controls:** Start, pause, stop, loop modes (`Off`, `Track`, `Session`), master volume, stereo balance (`CenterBalanceSlider`), seeking, and a stereo VU meter.
 * **FLAC Export:** Export the current track, all tracks as individual `.flac` files, or the entire session as a single `.flac` file.
 * **Settings & Localization:** Persists window size, editor size, last directory, volume, balance, loop mode, and UI language (`English` / `Deutsch`) to `~/.config/E-Stim/settings.json`.
+
+![Badge](https://hitscounter.dev/api/hit?url=https://github.com/sc44/E-Stim_Player-&color=%230a58ca&message=&style=plastic&tz=UTC)
