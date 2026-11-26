@@ -2,6 +2,10 @@
 
 A Python-based player and session editor with a `customtkinter` graphical interface for playing and synthesizing audio and stimulation sessions, as well as exporting to `.flac`.
 
+![alt text](https://github.com/sc44/E-Stim-Player/blob/main/E-Stim-Player.png)
+![alt text](https://github.com/sc44/E-Stim-Player/blob/main/E-Stim-Player_1.png)
+
+
 ## Requirements and Installation
 
 ### 1. System Dependencies (Linux)
