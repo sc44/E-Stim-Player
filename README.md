@@ -49,4 +49,4 @@ python E-Stim-Player.py
 * **FLAC Export:** Export the current track, all tracks as individual `.flac` files, or the entire session as a single `.flac` file.
 * **Settings & Localization:** Persists window size, editor size, last directory, volume, balance, loop mode, and UI language (`English` / `Deutsch`) to `~/.config/E-Stim/settings.json`.
 
-![Badge](https://hitscounter.dev/api/hit?url=https://github.com/sc44/E-Stim_Player-&color=%230a58ca&message=&style=plastic&tz=UTC)
+![Badge](https://hitscounter.dev/api/hit?url=https://github.com/sc44/E-Stim-Player&color=%230a58ca&message=&style=plastic&tz=UTC)
