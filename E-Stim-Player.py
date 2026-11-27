@@ -21,6 +21,8 @@ try:
 except ImportError:
     sf = None
 
+APP_VERSION = "1.1"
+APP_CREATOR = "sc44"
 VALID_LOOP_KEYS = ("off", "track", "session")
 VALID_LANGUAGES = ("en", "de")
 LANGUAGE_LABELS = {"en": "English", "de": "Deutsch"}
@@ -41,7 +43,14 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "menu_export_all_tracks": "Save All Tracks as Individual .flac...",
         "menu_export_session": "Save Entire Session as .flac...",
         "menu_settings": "Settings",
+        "menu_about": "Info...",
         "menu_exit": "Exit",
+        "about_title": "Info – E-Stim Player",
+        "about_heading": "E-Stim Player",
+        "about_version": "Version {version}",
+        "about_creator": "Creator: {creator}",
+        "about_desc": "Desktop audio and session player for FLAC, M3U, XML, and ALASS2 S-Expression sessions.",
+        "about_btn_close": "Close",
         "btn_open_session": "Open Session",
         "btn_create_session": "New / Edit Session",
         "no_session_loaded": "No session loaded",
@@ -93,7 +102,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "dialog_save_alass2_title": "Save Session (.alass2)",
         "kind_playlist": "Playlist",
         "kind_tracks": "Tracks",
-        "session_header": "{name}  |  {count} {kind}  |  Total: {total:.1f}s",
+        "session_header": "{name}  |  {count} {kind}  |  Total: {total}",
         "detail_track_header": "Track #{index}: {name}",
         "detail_duration": "Duration: {dur:.2f} s",
         "detail_source": "Source:    {path}",
@@ -153,7 +162,14 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "menu_export_all_tracks": "Alle Tracks als einzelne .flac speichern...",
         "menu_export_session": "Ganze Session als .flac speichern...",
         "menu_settings": "Einstellungen",
+        "menu_about": "Info...",
         "menu_exit": "Beenden",
+        "about_title": "Info – E-Stim Player",
+        "about_heading": "E-Stim Player",
+        "about_version": "Version {version}",
+        "about_creator": "Creator: {creator}",
+        "about_desc": "Desktop-Audio- und Session-Player für FLAC-, M3U-, XML- und ALASS2-S-Expression-Sessions.",
+        "about_btn_close": "Schließen",
         "btn_open_session": "Session öffnen",
         "btn_create_session": "Session erstellen",
         "no_session_loaded": "Keine Session geladen",
@@ -205,7 +221,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "dialog_save_alass2_title": "Session speichern (.alass2)",
         "kind_playlist": "Playlist",
         "kind_tracks": "Tracks",
-        "session_header": "{name}  |  {count} {kind}  |  Gesamt: {total:.1f}s",
+        "session_header": "{name}  |  {count} {kind}  |  Gesamt: {total}",
         "detail_track_header": "Track #{index}: {name}",
         "detail_duration": "Dauer: {dur:.2f} s",
         "detail_source": "Quelle:    {path}",
@@ -365,6 +381,12 @@ def _format_pan_label(pan: float) -> str:
     if p < 0:
         return f"L: {pct}%"
     return f"R: {pct}%"
+
+
+def _format_mm_ss(seconds: float) -> str:
+    total_sec = max(0, int(round(_to_float(seconds, 0.0))))
+    mins, secs = divmod(total_sec, 60)
+    return f"{mins}:{secs:02d}"
 
 
 def parse_german_float(value: Optional[str], default: float = 0.0) -> float:
@@ -2311,6 +2333,56 @@ class SessionCreatorDialog(ctk.CTkToplevel):
         self.destroy()
 
 
+class AboutDialog(ctk.CTkToplevel):
+    """Info dialog showing application name, version, and creator."""
+
+    def __init__(self, master: "EStimPlayerApp", language: str = "en"):
+        super().__init__(master=master)
+        self.lang = language if language in VALID_LANGUAGES else "en"
+        self.title(tr_text(self.lang, "about_title"))
+        self.geometry("390x235")
+        self.resizable(False, False)
+        self.transient(master)
+        self.grab_set()
+
+        self.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            master=self,
+            text=tr_text(self.lang, "about_heading"),
+            font=ctk.CTkFont(size=18, weight="bold"),
+        ).grid(row=0, column=0, padx=20, pady=(18, 2))
+
+        ctk.CTkLabel(
+            master=self,
+            text=tr_text(self.lang, "about_version", version=APP_VERSION),
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color="#3b8ed0",
+        ).grid(row=1, column=0, padx=20, pady=(0, 2))
+
+        ctk.CTkLabel(
+            master=self,
+            text=tr_text(self.lang, "about_creator", creator=APP_CREATOR),
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="gray80",
+        ).grid(row=2, column=0, padx=20, pady=(0, 8))
+
+        ctk.CTkLabel(
+            master=self,
+            text=tr_text(self.lang, "about_desc"),
+            wraplength=340,
+            justify="center",
+            font=ctk.CTkFont(size=12),
+        ).grid(row=3, column=0, padx=20, pady=(0, 14))
+
+        ctk.CTkButton(
+            master=self,
+            text=tr_text(self.lang, "about_btn_close"),
+            width=110,
+            command=self.destroy,
+        ).grid(row=4, column=0, padx=20, pady=(0, 16))
+
+
 class SettingsDialog(ctk.CTkToplevel):
     """Settings dialog for window size, master volume, export volume, directory, and language."""
 
@@ -2538,10 +2610,16 @@ class EStimPlayerApp(ctk.CTk):
         file_menu.add_command(label=self._t("menu_export_session"), command=self.on_export_session_flac)
         file_menu.add_separator()
         file_menu.add_command(label=self._t("menu_settings"), command=self.open_settings)
+        file_menu.add_command(label=self._t("menu_about"), command=self.open_about)
         file_menu.add_separator()
         file_menu.add_command(label=self._t("menu_exit"), command=self.on_close)
         menubar.add_cascade(label=self._t("menu_file"), menu=file_menu)
         self.configure(menu=menubar)
+
+    def open_about(self):
+        with self._lock:
+            lang = self.language
+        AboutDialog(self, language=lang)
 
     def open_session_creator(self):
         with self._lock:
@@ -2567,7 +2645,7 @@ class EStimPlayerApp(ctk.CTk):
                 name=session.name,
                 count=len(session.tracks),
                 kind=kind_label,
-                total=total_sec,
+                total=_format_mm_ss(total_sec),
             )
         )
 
@@ -2619,7 +2697,7 @@ class EStimPlayerApp(ctk.CTk):
                     name=session.name,
                     count=len(session.tracks),
                     kind=kind_label,
-                    total=total_sec,
+                    total=_format_mm_ss(total_sec),
                 )
             )
             self._update_details(t_idx)
@@ -3241,7 +3319,7 @@ class EStimPlayerApp(ctk.CTk):
                 name=session.name,
                 count=len(session.tracks),
                 kind=kind_label,
-                total=total_sec,
+                total=_format_mm_ss(total_sec),
             )
         )
 
