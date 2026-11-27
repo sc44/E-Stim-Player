@@ -29,7 +29,7 @@ LANGUAGE_LABELS = {"en": "English", "de": "Deutsch"}
 LABEL_TO_LANGUAGE = {v: k for k, v in LANGUAGE_LABELS.items()}
 
 DEFAULT_SAMPLE_RATE = 44100
-BLOCKSIZE = 6144
+BLOCKSIZE = 4048
 FLAC_METER_SCALE = 0.55
 AUDIO_FILE_EXTENSIONS = (".flac", ".wav", ".ogg")
 
@@ -2626,6 +2626,63 @@ class EStimPlayerApp(ctk.CTk):
             cur_session = self.session
         SessionCreatorDialog(self, base_session=cur_session)
 
+    def _reset_track_scroll(self):
+        """Scrolls the track list back to the top when loading a session."""
+        def _do_reset():
+            if not hasattr(self, "track_list_frame"):
+                return
+            try:
+                self.track_list_frame.update_idletasks()
+                canvas = getattr(self.track_list_frame, "_parent_canvas", None)
+                if canvas is not None:
+                    canvas.yview_moveto(0.0)
+            except Exception:
+                pass
+
+        self.after(0, _do_reset)
+
+    def _scroll_track_into_view(self, idx: int):
+        """Scrolls the track list so track `idx` is visible."""
+        if not (0 <= idx < len(self.track_buttons)):
+            return
+
+        def _do_scroll():
+            if not (0 <= idx < len(self.track_buttons)):
+                return
+            btn = self.track_buttons[idx]
+            try:
+                if not btn.winfo_exists():
+                    return
+                self.track_list_frame.update_idletasks()
+                canvas = getattr(self.track_list_frame, "_parent_canvas", None)
+                if canvas is None:
+                    return
+                bbox = canvas.bbox("all")
+                if not bbox:
+                    return
+                total_h = float(bbox[3] - bbox[1])
+                view_h = float(canvas.winfo_height())
+                if total_h <= view_h or total_h <= 0.0:
+                    canvas.yview_moveto(0.0)
+                    return
+
+                btn_y = float(btn.winfo_y())
+                btn_h = float(btn.winfo_height())
+                cur_top = float(canvas.canvasy(0))
+                cur_bottom = cur_top + view_h
+
+                margin = max(8.0, btn_h * 0.5)
+                if btn_y < cur_top + margin:
+                    target_top = max(0.0, btn_y - margin)
+                    canvas.yview_moveto(target_top / total_h)
+                elif (btn_y + btn_h) > (cur_bottom - margin):
+                    target_top = max(0.0, min(total_h - view_h, (btn_y + btn_h + margin) - view_h))
+                    canvas.yview_moveto(target_top / total_h)
+            except Exception:
+                pass
+
+        self.after(0, _do_scroll)
+
     def load_session_direct(self, session: SessionConfig, preferred_track_idx: int = 0):
         self.on_stop_click(reset_track=False)
         target_idx = preferred_track_idx if (0 <= preferred_track_idx < len(session.tracks)) else 0
@@ -2665,7 +2722,8 @@ class EStimPlayerApp(ctk.CTk):
             btn.pack(fill="x", padx=4, pady=2)
             self.track_buttons.append(btn)
 
-        self._highlight_track(target_idx)
+        self._highlight_track(target_idx, scroll_into_view=False)
+        self._reset_track_scroll()
         self._update_details(target_idx)
         self._set_seek_ui(0.0)
         self.lbl_status.configure(text=self._t("status_loaded", filename=session.name))
@@ -3340,17 +3398,20 @@ class EStimPlayerApp(ctk.CTk):
             btn.pack(fill="x", padx=4, pady=2)
             self.track_buttons.append(btn)
 
-        self._highlight_track(target_idx)
+        self._highlight_track(target_idx, scroll_into_view=False)
+        self._reset_track_scroll()
         self._update_details(target_idx)
         self._set_seek_ui(0.0)
         self.lbl_status.configure(text=self._t("status_loaded", filename=os.path.basename(abs_fp)))
 
-    def _highlight_track(self, idx: int):
+    def _highlight_track(self, idx: int, scroll_into_view: bool = True):
         for i, btn in enumerate(self.track_buttons):
             if i == idx:
                 btn.configure(fg_color=("#1f6aa5", "#1f6aa5"))
             else:
                 btn.configure(fg_color=("gray75", "gray25"))
+        if scroll_into_view:
+            self._scroll_track_into_view(idx)
 
     def _update_details(self, idx: int):
         if not self.session or not (0 <= idx < len(self.session.tracks)):
@@ -3420,7 +3481,7 @@ class EStimPlayerApp(ctk.CTk):
             self._gapless_transition = False
         self.last_track_idx = idx
         self._persist_current_settings()
-        self._highlight_track(idx)
+        self._highlight_track(idx, scroll_into_view=True)
         self._update_details(idx)
         self._set_seek_ui(0.0)
         self.on_start_click()
@@ -3440,7 +3501,7 @@ class EStimPlayerApp(ctk.CTk):
 
         self.last_track_idx = start_idx
         self._persist_current_settings(min_interval_sec=1.0)
-        self._highlight_track(start_idx)
+        self._highlight_track(start_idx, scroll_into_view=True)
         self._update_details(start_idx)
         self.lbl_status.configure(text=self._t("status_playback_started"))
         if need_thread:
@@ -3475,7 +3536,7 @@ class EStimPlayerApp(ctk.CTk):
         self._set_seek_ui(0.0)
         self.vu_meter.reset()
         if self.track_buttons:
-            self._highlight_track(target_idx)
+            self._highlight_track(target_idx, scroll_into_view=bool(reset_track))
             self._update_details(target_idx)
         if reset_track:
             self._persist_current_settings()
@@ -3661,7 +3722,7 @@ class EStimPlayerApp(ctk.CTk):
                         self.after(
                             0,
                             lambda i=t_idx: (
-                                self._highlight_track(i),
+                                self._highlight_track(i, scroll_into_view=True),
                                 self._update_details(i),
                             ),
                         )
@@ -3717,4 +3778,20 @@ if __name__ == "__main__":
         initial_file=default_path if os.path.exists(default_path) else None,
         sample_rate=DEFAULT_SAMPLE_RATE,
     )
-    app.mainloop()
+
+#Icon-Pfad ermitteln und laden (getrennt vom Start)
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+icon_path = os.path.join(script_dir, "/usr/share/pixmaps/e-stim-player.png")
+
+if os.path.exists(icon_path):
+    try:
+        app.icon_image = tk.PhotoImage(file=icon_path)
+        app.iconphoto(True, app.icon_image)
+        print("Icon erfolgreich geladen.")
+    except Exception as e:
+        print(f"Fehler beim Laden des Icons (wird ignoriert): {e}")
+else:
+    print("Kein Icon gefunden, Programm startet normal.")
+
+app.mainloop()
